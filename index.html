@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professional Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  <style>
+    .calculator-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+    }
+    .display {
+      font-family: 'Courier New', Courier, monospace;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .btn {
+      transition: background-color 0.2s;
+    }
+    .btn:hover {
+      filter: brightness(90%);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full">
+    <h1 class="text-2xl font-bold text-center text-gray-800 mb-4">Calculator</h1>
+    <div class="mb-4">
+      <input id="display" type="text" readonly
+             class="w-full p-4 text-right text-2xl bg-gray-200 rounded-lg display"
+             value="0">
+    </div>
+    <div class="calculator-grid">
+      <button class="btn bg-red-500 text-white p-4 rounded-lg" onclick="clearDisplay()">C</button>
+      <button class="btn bg-gray-300 p-4 rounded-lg" onclick="appendToDisplay('(')">(</button>
+      <button class="btn bg-gray-300 p-4 rounded-lg" onclick="appendToDisplay(')')">)</button>
+      <button class="btn bg-orange-500 text-white p-4 rounded-lg" onclick="appendToDisplay('/')">÷</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('7')">7</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('8')">8</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('9')">9</button>
+      <button class="btn bg-orange-500 text-white p-4 rounded-lg" onclick="appendToDisplay('*')">×</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('4')">4</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('5')">5</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('6')">6</button>
+      <button class="btn bg-orange-500 text-white p-4 rounded-lg" onclick="appendToDisplay('-')">-</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('1')">1</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('2')">2</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('3')">3</button>
+      <button class="btn bg-orange-500 text-white p-4 rounded-lg" onclick="appendToDisplay('+')">+</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="backspace()">←</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('0')">0</button>
+      <button class="btn bg-gray-200 p-4 rounded-lg" onclick="appendToDisplay('.')">.</button>
+      <button class="btn bg-blue-500 text-white p-4 rounded-lg" onclick="calculate()">=</button>
+    </div>
+    <p class="text-center text-gray-500 mt-4 text-sm">Developed by Keerthi</p>
+  </div>
+
+  <script>
+    let pyodide;
+    let display = document.getElementById('display');
+
+    async function loadPyodideAndRun() {
+      pyodide = await loadPyodide();
+      await pyodide.runPythonAsync(`
+def safe_eval(expression):
+    try:
+        # Restrict eval to basic arithmetic
+        allowed_chars = set('0123456789.+-*/() ')
+        if not all(c in allowed_chars for c in expression):
+            return "Error: Invalid characters"
+        result = eval(expression, {"__builtins__": {}})
+        return str(result)
+    except Exception as e:
+        return "Error: " + str(e)
+`);
+    }
+
+    // Initialize Pyodide
+    loadPyodideAndRun();
+
+    function appendToDisplay(value) {
+      if (display.value === '0' || display.value.startsWith('Error')) {
+        display.value = value;
+      } else {
+        display.value += value;
+      }
+    }
+
+    function clearDisplay() {
+      display.value = '0';
+    }
+
+    function backspace() {
+      if (display.value.length > 1 && !display.value.startsWith('Error')) {
+        display.value = display.value.slice(0, -1);
+      } else {
+        display.value = '0';
+      }
+    }
+
+    async function calculate() {
+      if (!pyodide) {
+        display.value = 'Error: Pyodide not loaded';
+        return;
+      }
+      let result = await pyodide.runPythonAsync(`
+safe_eval("${display.value.replace(/÷/g, '/').replace(/×/g, '*')}")
+`);
+      display.value = result;
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', (event) => {
+      const key = event.key;
+      if (/[0-9]/.test(key)) appendToDisplay(key);
+      else if (key === '+') appendToDisplay('+');
+      else if (key === '-') appendToDisplay('-');
+      else if (key === '*') appendToDisplay('×');
+      else if (key === '/') appendToDisplay('÷');
+      else if (key === '.') appendToDisplay('.');
+      else if (key === '(') appendToDisplay('(');
+      else if (key === ')') appendToDisplay(')');
+      else if (key === 'Enter') calculate();
+      else if (key === 'Escape') clearDisplay();
+      else if (key === 'Backspace') backspace();
+    });
+  </script>
+</body>
+</html>
